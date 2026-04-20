@@ -5,7 +5,7 @@ import soundfile as sf
 from openai import OpenAI
 
 app = Flask(__name__)
-client = OpenAI(api_key="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")
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 @app.route("/")
 def index():
