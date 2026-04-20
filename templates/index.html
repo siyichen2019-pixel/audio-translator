@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中文 → 英文 翻译</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, sans-serif;
+            background: #0f0f0f;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+            padding: 40px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 60px;
+            font-size: 14px;
+        }
+        .btn {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background: #2563eb;
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #1d4ed8; transform: scale(1.05); }
+        .btn.recording { background: #dc2626; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+        .status {
+            margin-top: 30px;
+            color: #888;
+            font-size: 14px;
+            height: 20px;
+        }
+        .result {
+            margin-top: 40px;
+            text-align: left;
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 500px;
+            display: none;
+        }
+        .label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .text-zh { font-size: 18px; margin-bottom: 20px; }
+        .text-en { font-size: 18px; color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ 实时翻译</h1>
+        <p class="subtitle">中文 → 英文</p>
+
+        <button class="btn" id="btn">🎤</button>
+        <div class="status" id="status">按下开始录音</div>
+
+        <div class="result" id="result">
+            <div class="label">中文</div>
+            <div class="text-zh" id="chinese"></div>
+            <div class="label">English</div>
+            <div class="text-en" id="english"></div>
+        </div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('btn');
+        const status = document.getElementById('status');
+        const result = document.getElementById('result');
+        let mediaRecorder, chunks = [], recording = false;
+
+        btn.addEventListener('click', async () => {
+            if (!recording) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                chunks = [];
+                mediaRecorder.ondataavailable = e => chunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    status.textContent = '⏳ 处理中...';
+                    const blob = new Blob(chunks, { type: 'audio/wav' });
+                    const formData = new FormData();
+                    formData.append('audio', blob, 'recording.wav');
+                    try {
+                        const res = await fetch('/translate', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        document.getElementById('chinese').textContent = data.chinese;
+                        document.getElementById('english').textContent = data.english;
+                        result.style.display = 'block';
+                        const audio = new Audio('/audio/' + data.audio_path.slice(1));
+                        audio.play();
+                        status.textContent = '按下开始录音';
+                    } catch(e) {
+                        status.textContent = '❌ 出错了，再试一次';
+                    }
+                };
+                mediaRecorder.start();
+                recording = true;
+                btn.classList.add('recording');
+                btn.textContent = '⏹️';
+                status.textContent = '🔴 录音中，再按一次停止';
+            } else {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(t => t.stop());
+                recording = false;
+                btn.classList.remove('recording');
+                btn.textContent = '🎤';
+            }
+        });
+    </script>
+</body>
+</html>
